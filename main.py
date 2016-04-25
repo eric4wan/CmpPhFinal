@@ -1,16 +1,5 @@
-if __name__ == "__main__":
-    faceOrFilter = input("Hello! Would you like to try 'FaceSwap' or 'Filter'?")
-
-    feature = -1
-    # -1 = not valid
-    # 0 = FaceSwap
-    # 1 = filter
-    if (faceOrFilter == 'FaceSwap'):
-        faceSwap()
-    else if (faceOrFilter == 'Filter'):
-        filters()
-
-
+import sys
+import os
 def faceSwap():
     print("Analyzing your photos...")
     if (findNumFaces() < 2):
@@ -28,8 +17,8 @@ def filters():
 
 
 def findNumFaces():
-    sourcefolder = os.path.abspath(os.path.join(os.curdir, 'videos', 'source'))
-    outfolder = os.path.abspath(os.path.join(os.curdir, 'videos', 'out'))
+    sourcefolder = os.path.abspath(os.path.join(os.curdir, 'source'))
+    outfolder = os.path.abspath(os.path.join(os.curdir, 'out'))
     if not os.path.exists(outfolder):
         os.mkdir(outfolder)
 
@@ -46,7 +35,7 @@ def findNumFaces():
             if ext in exts:
                 img_list.append(cv2.imread(os.path.join(sourcefolder, video_dir,
                                                         filename)))
-    for img in img_list:
+    # for img in img_list:
         # set numFaces
 
     return numFaces
@@ -58,3 +47,18 @@ def writeOutput(out_list):
 
     for idx, image in enumerate(out_list):
         cv2.imwrite(os.path.join(outfolder,video_dir,'frame{0:04d}.png'.format(idx)), image)
+
+if __name__ == "__main__":
+    faceOrFilter = input("Hello! Would you like to try faceSwap or filter? ")
+
+    feature = -1
+    # -1 = not valid
+    # 0 = FaceSwap
+    # 1 = filter
+    if (faceOrFilter == "FaceSwap"):
+        faceSwap()
+    elif (faceOrFilter == "Filter"):
+        filters()
+    else:
+        print("That was not valid input!")
+        sys.exit(0)
