@@ -4,7 +4,7 @@ Spring 2016
   
 Facial Feature Swapping and Editing  
   
-(1) Place your input(s) in the Input folder:
+(1) Place your input(s) in the Input folder:  
 a. Your input should have at least one face for filtering or two for swapping.  
 b. Multiple inputs can be processed at once.  
   
