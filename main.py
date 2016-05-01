@@ -22,7 +22,7 @@
 
 """
 
-Please consult the README on build instructions
+Please consult the README on build instructions! There are a lot of things to do.
 
 Small sections of this code were borrowed (legally/ethically/rightfully) from
 online resources. A Copyright statement from one author has been included above,
@@ -89,6 +89,7 @@ if (((bo != "B") and (bo != "O")) or len(OVERLAY_POINTS) == 0):
     sys.exit(0)
 
 detector = dlib.get_frontal_face_detector()
+# make sure it's here!!!
 predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
 
 def face_outline(im, landmarks):
