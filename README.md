@@ -8,9 +8,14 @@ As far as we can tell, OSX seems to require the following commands:
 
 brew install boost --with-python
 brew install boost-python
+<!--  potentially unnecessary -->
 sudo chown -R $USER:admin /usr/local/include
+
 brew link boost
-sudo easy_install cmake
+brew install cmake
+<!--  potentially unnecessary -->
+sudo ln -s /opt/X11/include/X11 /usr/local/include/X11
+
 sudo pip install dlib
 
 Make sure to download and extract shape_predictor_68_face_landmarks.dat.zip into the project directory!

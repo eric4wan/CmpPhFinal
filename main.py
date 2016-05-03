@@ -74,9 +74,9 @@ def excl(arg):
     return switch.get(arg, "INVALID INPUT")
 
 # start of keyboard input to control the faceswap parameters
-bo = raw_input("Hello! Welcome to live FaceSwap. Would you like to begin or review the options? ('B' or 'O')\n")
+bo = raw_input("\nHello! Welcome to live FaceSwap. \nWould you like to begin or review the options? ('B' or 'O')\n")
 if (bo == "O"):
-    ex = raw_input("Which features would you like to swap? Please type only one letter and hit enter to add it to the list.\n\
+    ex = raw_input("\nWhich features would you like to swap? Please type only one letter and hit enter to add it to the list.\n\
         All features = 'A'\n Eyes = 'E'\n Nose = 'N'\n Mouth = 'M'\n")
     OVERLAY_POINTS = excl(ex)
     print len(OVERLAY_POINTS)
@@ -155,10 +155,11 @@ fsaved = False
 
 while True:
     # avoid lag by waiting
-    # counter += 1
-    # if (not (counter % 5 == 0)):
-    #     continue
+    counter += 1
+    if (not (counter % 3 == 0)):
+        continue
     ret, frame = webcam.read()
+    saved = frame
     # detect faces from current webcam frame
     faces = detector(frame, 1)
     if len(faces) < 2:
@@ -196,10 +197,11 @@ while True:
         # format for cv2.imshow() - if you want to use cv2.imwrite(), skip this line
         output_im =  np.array(output_im, dtype = float) / float(255)
         cv2.imshow('frame', output_im)
+        cv2.imshow('2', saved)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
 webcam.release()
 cv2.destroyAllWindows()
-print "Bye - thanks for trying out FaceSwap!"
+print "\nBye - thanks for trying out FaceSwap!"
