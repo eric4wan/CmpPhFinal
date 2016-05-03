@@ -79,7 +79,6 @@ if (bo == "O"):
     ex = raw_input("\nWhich features would you like to swap? Please type only one letter and hit enter to add it to the list.\n\
         All features = 'A'\n Eyes = 'E'\n Nose = 'N'\n Mouth = 'M'\n")
     OVERLAY_POINTS = excl(ex)
-    print len(OVERLAY_POINTS)
 
 if (bo == "B"):
     OVERLAY_POINTS = [LEFT_EYE + RIGHT_EYE + LEFT_BROW + RIGHT_BROW, NOSE + MOUTH,]
@@ -92,10 +91,15 @@ detector = dlib.get_frontal_face_detector()
 # make sure it's here!!!
 predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
 
-def face_outline(im, landmarks):
+def face_outline(im, landmarks, rain):
     im = np.zeros(im.shape[:2], dtype = np.float64)
+    points = None
+    if rain:
+        points = [MOUTH,]
+    else:
+        points = OVERLAY_POINTS
 
-    for group in OVERLAY_POINTS:
+    for group in points:
         points = cv2.convexHull(landmarks[group])
         cv2.fillConvexPoly(im, landmarks[group], color = 1)
 
@@ -149,6 +153,19 @@ def color_correction(im1, im2, landmarks1):
     out_val = (im2.astype(np.float64) * im1_blur.astype(np.float64) / im2_blur.astype(np.float64))
     return out_val
 
+def tintMouthRed(im, landmarks1):
+    blur_amount = 0.6 * np.linalg.norm(np.mean(landmarks1[LEFT_EYE], axis = 0) - np.mean(landmarks1[RIGHT_EYE], axis = 0))
+    blur_amount = int(blur_amount)
+    if blur_amount % 2 == 0:
+        blur_amount += 1
+    imblur = cv2.GaussianBlur(im, (blur_amount, blur_amount), 0)
+
+    red = np.ones(im.shape, dtype = np.float64)
+    red[red[:,:,0] > 0] = [10, 10, 100]
+    redblur = cv2.GaussianBlur(red, (blur_amount, blur_amount), 0)
+    imblur += (128 * (imblur <= 1)).astype(np.uint8)
+    return (im.astype(np.float64) * red / imblur.astype(np.float64))
+
 webcam = cv2.VideoCapture(0)
 counter = 0
 fsaved = False
@@ -156,51 +173,57 @@ fsaved = False
 while True:
     # avoid lag by waiting
     counter += 1
-    if (not (counter % 3 == 0)):
-        continue
-    ret, frame = webcam.read()
-    saved = frame
-    # detect faces from current webcam frame
-    faces = detector(frame, 1)
-    if len(faces) < 2:
-        print "need more faces!!!"
-        continue
-    else:
-        # because both faces show up in same frame, ordering is important for xy math
-        if faces[0].left() < faces[1].left():
-            im1, landmarks1 = (frame, np.matrix([[p.x, p.y] for p in predictor(frame, faces[0]).parts()]))
-            im2, landmarks2 = (frame, np.matrix([[p.x, p.y] for p in predictor(frame, faces[1]).parts()]))
+    if (counter % 3 == 0):
+        ret, frame = webcam.read()
+        saved = frame
+        # detect faces from current webcam frame
+        faces = detector(frame, 1)
+        if len(faces) < 2:
+            # print "need more faces!!!"
+            if (len(faces) == 1):
+                imRain, landmRain = (saved, np.matrix([[p.x, p.y] for p in predictor(frame, faces[0]).parts()]))
+                mouth = face_outline(imRain, landmRain, True)
+                colored = tintMouthRed(imRain, landmRain)
+                saved = saved * (1.0 - mouth) + colored * mouth
+                saved =  np.array(saved, dtype = float) / float(255)
+                cv2.imshow('2', saved)
+            continue
         else:
-            im1, landmarks1 = (frame, np.matrix([[p.x, p.y] for p in predictor(frame, faces[1]).parts()]))
-            im2, landmarks2 = (frame, np.matrix([[p.x, p.y] for p in predictor(frame, faces[0]).parts()]))
+            # because both faces show up in same frame, ordering is important for xy math
+            if faces[0].left() < faces[1].left():
+                im1, landmarks1 = (frame, np.matrix([[p.x, p.y] for p in predictor(frame, faces[0]).parts()]))
+                im2, landmarks2 = (frame, np.matrix([[p.x, p.y] for p in predictor(frame, faces[1]).parts()]))
+            else:
+                im1, landmarks1 = (frame, np.matrix([[p.x, p.y] for p in predictor(frame, faces[1]).parts()]))
+                im2, landmarks2 = (frame, np.matrix([[p.x, p.y] for p in predictor(frame, faces[0]).parts()]))
 
-        # get transformation matrices
-        M = transformation_matrix(landmarks1[ALIGN_POINTS], landmarks2[ALIGN_POINTS])
-        M1 = transformation_matrix(landmarks2[ALIGN_POINTS], landmarks1[ALIGN_POINTS])
-        # get actual chunk of face (if swapping all features, should look like a 'T')
-        mask = face_outline(im2, landmarks2)
-        mask1 = face_outline(im1, landmarks1)
-        # applying the transformation to the masks
-        warped_mask = warp_im(mask, M, im1.shape)
-        warped_mask1 = warp_im(mask1, M1, im2.shape)
-        # combining
-        combined_mask = np.max([face_outline(im1, landmarks1), warped_mask], axis = 0)
-        combined_mask1 = np.max([face_outline(im2, landmarks2), warped_mask1], axis = 0)
-        warped_im2 = warp_im(im2, M, im1.shape)
-        warped_im3 = warp_im(im1, M1, im2.shape)
-        # blending skin colors
-        warped_corrected_im2 = color_correction(im1, warped_im2, landmarks1)
-        warped_corrected_im3 = color_correction(im2, warped_im3, landmarks2)
-        # finishing off transformation math
-        output_im = im1 * (1.0 - combined_mask) + warped_corrected_im2 * combined_mask
-        output_im = output_im * (1.0 - combined_mask1) + warped_corrected_im3 * combined_mask1
-        # format for cv2.imshow() - if you want to use cv2.imwrite(), skip this line
-        output_im =  np.array(output_im, dtype = float) / float(255)
-        cv2.imshow('frame', output_im)
-        cv2.imshow('2', saved)
+            # get transformation matrices
+            M = transformation_matrix(landmarks1[ALIGN_POINTS], landmarks2[ALIGN_POINTS])
+            M1 = transformation_matrix(landmarks2[ALIGN_POINTS], landmarks1[ALIGN_POINTS])
+            # get actual chunk of face (if swapping all features, should look like a 'T')
+            mask = face_outline(im2, landmarks2, False)
+            mask1 = face_outline(im1, landmarks1, False)
+            # applying the transformation to the masks
+            warped_mask = warp_im(mask, M, im1.shape)
+            warped_mask1 = warp_im(mask1, M1, im2.shape)
+            # combining
+            combined_mask = np.max([face_outline(im1, landmarks1, False), warped_mask], axis = 0)
+            combined_mask1 = np.max([face_outline(im2, landmarks2, False), warped_mask1], axis = 0)
+            warped_im2 = warp_im(im2, M, im1.shape)
+            warped_im3 = warp_im(im1, M1, im2.shape)
+            # blending skin colors
+            warped_corrected_im2 = color_correction(im1, warped_im2, landmarks1)
+            warped_corrected_im3 = color_correction(im2, warped_im3, landmarks2)
+            # finishing off transformation math
+            output_im = im1 * (1.0 - combined_mask) + warped_corrected_im2 * combined_mask
+            output_im = output_im * (1.0 - combined_mask1) + warped_corrected_im3 * combined_mask1
+            # format for cv2.imshow() - if you want to use cv2.imwrite(), skip this line
+            output_im =  np.array(output_im, dtype = float) / float(255)
+            cv2.imshow('frame', output_im)
 
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            break
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
 
 webcam.release()
 cv2.destroyAllWindows()
